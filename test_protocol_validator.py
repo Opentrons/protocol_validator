@@ -5,9 +5,9 @@ import protocol_validator
 
 class ProtocolvalidatorTestCase(unittest.TestCase):
     def setUp(self):
-        self.validator = protocol_validator.JSONProtocolvalidator(
-            'test_data/p10s.json',
-            'test_data/containers.json'
+        self.validator = protocol_validator.JSONProtocolValidator(
+            'data/p10s.json',
+            'data/containers.json'
         )
 
     def test_validate_deck(self):
@@ -31,6 +31,7 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
         }
 
         deck_errors = self.validator.validate_deck()
+        print(deck_errors)
         self.assertEqual(len(deck_errors), 4)
 
     def test_validate_head(self):
