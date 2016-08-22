@@ -1,17 +1,17 @@
 import unittest
 
-import protocol_verifier
+import protocol_validator
 
 
-class ProtocolVerifierTestCase(unittest.TestCase):
+class ProtocolvalidatorTestCase(unittest.TestCase):
     def setUp(self):
-        self.verifier = protocol_verifier.JSONProtocolVerifier(
+        self.validator = protocol_validator.JSONProtocolvalidator(
             'test_data/p10s.json',
             'test_data/containers.json'
         )
 
-    def test_deck_verify(self):
-        self.verifier.protocol = {
+    def test_validate_deck(self):
+        self.validator.protocol = {
             "deck": {
                 "p10-rack": {
                     "labware": "FAKE-LABWARE",
@@ -30,10 +30,10 @@ class ProtocolVerifierTestCase(unittest.TestCase):
             }
         }
 
-        deck_errors = self.verifier.verify_deck()
+        deck_errors = self.validator.validate_deck()
         self.assertEqual(len(deck_errors), 4)
 
-    def test_verify_head(self):
+    def test_validate_head(self):
         pass
 
 

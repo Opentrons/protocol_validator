@@ -13,7 +13,7 @@ class Container(object):
         return slot in container.get('locations', {})
 
 
-class JSONProtocolVerifier(object):
+class JSONProtocolValidator(object):
     def __init__(self, protocol_file_path: str, containers_file_path: str):
         with open(protocol_file_path) as protocol_json:
             self.protocol = json.load(protocol_json)
@@ -29,7 +29,7 @@ class JSONProtocolVerifier(object):
             errors.append('Protocol JSON must define a "deck" section')
         return errors
 
-    def verify(self) -> list:
+    def validate(self) -> list:
         """Entry method
         """
 
@@ -37,10 +37,10 @@ class JSONProtocolVerifier(object):
         if main_section_errors:
             return main_section_errors
 
-        deck_errors = self.verify_deck()
-        head_errors = self.verify_head()
-        ingredients_errors = self.verify_ingredients()
-        instructions_errors = self.verify_instructions()
+        deck_errors = self.validate_deck()
+        head_errors = self.validate_head()
+        ingredients_errors = self.validate_ingredients()
+        instructions_errors = self.validate_instructions()
 
         return sum([
             deck_errors,
@@ -49,10 +49,10 @@ class JSONProtocolVerifier(object):
             instructions_errors
         ], [])
 
-    def verify_head(self) -> list:
+    def validate_head(self) -> list:
         return []
 
-    def verify_deck(self) -> list:
+    def validate_deck(self) -> list:
         """
         Verifies that all users labwares are defined in the containers
         data
