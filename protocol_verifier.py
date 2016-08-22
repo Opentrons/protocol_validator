@@ -43,10 +43,10 @@ class JSONProtocolVerifier(object):
         instructions_errors = self.verify_instructions()
 
         return sum([
-            main_section_errors,
             deck_errors,
             head_errors,
             ingredients_errors,
+            instructions_errors
         ], [])
 
     def verify_head(self) -> list:
