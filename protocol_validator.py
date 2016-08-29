@@ -1,5 +1,6 @@
 import json
-
+import os
+import sys
 
 class Containers(object):
     def __init__(self, json_data: dict):
@@ -68,17 +69,17 @@ class JSONProtocolValidator(object):
                 with open(containers) as containers_json:
                     self.containers = Containers(json.load(containers_json))
             else:
-                self.containers = Containers(json.load(containers))
+                self.containers = Containers(json.loads(containers))
             if isinstance(protocol, dict):
                 self.protocol = Protocol(protocol)
             elif os.path.exists(os.path.dirname(protocol)):
                 with open(protocol) as protocol_json:
                     self.protocol = Protocol(json.load(protocol_json))
             else:
-                self.protocol = Protocol(json.load(protocol))
-        except e:
-            print(e) # TODO: log this instead of print
-            raise
+                self.protocol = Protocol(json.loads(protocol))
+        except:
+            print(sys.exc_info()[0]) # TODO: log this instead of print
+            return
         self.head = self.protocol.head
         self.deck = self.protocol.deck
 

@@ -10,3 +10,4 @@ A few TODO items:
 2. Add logging to protocol-validator.
 3. Add testing to protocol-validator.
 4. Example of how to use here in the README
+5. Return feedback on errors for improper inputs
