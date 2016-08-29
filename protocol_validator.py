@@ -400,7 +400,7 @@ class JSONProtocolValidator(object):
                             .format(tool_name, point_number)
                         )
                     elif f2 < 0 or f2 > 110:
-                        errors.append(
+                        warnings.append(
                             'Head tool "{}"\'s "points" point number {} "f2" is outside normal values'
                             .format(tool_name, point_number)
                         )
