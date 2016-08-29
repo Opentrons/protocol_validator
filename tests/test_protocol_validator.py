@@ -1,4 +1,5 @@
 import unittest
+import json
 
 import protocol_validator
 
@@ -6,9 +7,21 @@ import protocol_validator
 class ProtocolvalidatorTestCase(unittest.TestCase):
     def setUp(self):
         self.validator = protocol_validator.JSONProtocolValidator(
-            'data/p10s.json',
-            'data/containers.json'
+            'tests/fixtures/protocol.json',
+            'tests/fixtures/containers.json'
         )
+
+    def test_init_with_string(self):
+        # string containers & protocol
+        self.validator_string = protocol_validator.JSONProtocolValidator()
+        # assert something showing whether init with string worked
+
+
+    def test_init_with_object(self):
+        # object (dict) containers & protocol
+        self.validator_object = protocol_validator.JSONProtocol
+        # assert something showing whether init with object (dict) worked
+
 
     def test_validate_deck(self):
         self.validator.protocol = {
@@ -29,12 +42,19 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
                 }
             }
         }
-
-        deck_errors = self.validator.validate_deck()
-        print(deck_errors)
+        deck_errors = self.validator.validate_deck().get('errors')
+        print(json.dumps(deck_errors, sort_keys=True, indent=4))
         self.assertEqual(len(deck_errors), 4)
 
     def test_validate_head(self):
+        pass
+
+
+    def test_validate_instructions(self):
+        pass
+
+
+    def test_validate_ingredients(self):
         pass
 
 
