@@ -93,11 +93,11 @@ class JSONProtocolValidator(object):
             errors.append('Protocol JSON must define a "deck" section')
         #optional, although instructions are needed to get anything done
         if 'ingredients' not in self.protocol:
-            warnings.append('Protocol JSON should include an "ingredients" section for completeness"')
+            warnings.append('Protocol JSON should include an "ingredients" section for completeness')
         if 'instructions' not in self.protocol:
             warnings.append('Protocol JSON should include an "instructions" section to run')
         if 'info' not in self.protocol:
-            warnings.append('Protocol JSON can include an "info" section, which is nice: "info":\{"name":string,"description":string,"create-date":string,"version":string,"run-notes":string\}')
+            warnings.append('Protocol JSON can include an "info" section, which is nice: "info": {"name":string,"description":string,"create-date":string,"version":string,"run-notes":string}')
 
 
         messages = {'errors': errors, 'warnings': warnings}
@@ -108,46 +108,52 @@ class JSONProtocolValidator(object):
         """
         errors = []
         warnings = []
-        main_section_errors = self.ensure_main_sections()
-        if main_section_errors.get('errors'):
-            return main_section_errors
-
-        deck_messages = self.validate_deck()
-        head_messages = self.validate_head()
-        ingredients_messages = self.validate_ingredients()
-        instructions_messages = self.validate_instructions()
-
 
         info_dict = self.protocol.data.get('info',{})
         info_message = None
         if info_dict:
             info_message = json.dumps(info_dict)
 
+        no_containers = len(list(self.deck.data.keys()))
+        no_tools = len(list(self.head.data.keys()))
+        instructions_list = self.protocol.data.get('instructions', [])
+        no_instructions = len(instructions_list)
+
+        main_section_errors = self.ensure_main_sections()
+        if main_section_errors.get('errors'):
+            message = {
+                'info': info_message,
+                'salient': {'no_containers':no_containers, 'no_tools':no_tools, 'no_instructions':no_instructions},
+                'errors': errors,
+                'warnings': warnings
+            }
+            return message
+
+        deck_messages = self.validate_deck()
+        head_messages = self.validate_head()
+        ingredients_messages = self.validate_ingredients()
+        instructions_messages = self.validate_instructions()
 
         warnings = sum([
             deck_messages.get('warnings'),
             head_messages.get('warnings'),
             ingredients_messages.get('warnings'),
-            instructions_messages.get('warnings')
+            instructions_messages.get('warnings'),
+            main_section_errors.get('warnings')
         ], [])
 
         errors = sum([
             deck_messages.get('errors'),
             head_messages.get('errors'),
             ingredients_messages.get('errors'),
-            instructions_messages.get('errors')
+            instructions_messages.get('errors'),
         ], [])
-
-        no_containers = len(list(self.deck.data.keys()))
-        no_tools = len(list(self.head.data.keys()))
-        instructions_list = self.protocol.data.get('instructions', [])
-        no_instructions = len(instructions_list)
 
         message = {
             'info': info_message,
             'salient': {'no_containers':no_containers, 'no_tools':no_tools, 'no_instructions':no_instructions},
             'errors': errors,
-            'warnings': warnings,
+            'warnings': warnings
         }
 
         return message
