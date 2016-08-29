@@ -26,7 +26,7 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
 
 
     def test_validate_deck(self):
-        self.validator.protocol = {
+        dummy_protocol = {
             "deck": {
                 "p10-rack": {
                     "labware": "FAKE-LABWARE",
@@ -44,6 +44,7 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
                 }
             }
         }
+        self.validator.protocol = pvalid.Protocol(dummy_protocol)
         deck_errors = self.validator.validate_deck().get('errors')
         print(json.dumps(deck_errors, sort_keys=True, indent=4))
         self.assertEqual(len(deck_errors), 4)
