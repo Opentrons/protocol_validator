@@ -518,20 +518,20 @@ class JSONProtocolValidator(object):
                     if len(group) != 1:
                         errors.append(
                             'Instructions "groups" group must have only one element, at instruction number {}, group number {}'
-                            .format(instructions_number, group_number)
+                            .format(instruction_number, group_number)
                         )
                     else:
                         command_name, command_list = list(group.items())[0]
                         if command_name not in self.COMMAND_TYPES:
                             errors.append(
                                 'Instructions command MUST be one of {}, at instruction number {}, group number {}'
-                                .format(self.COMMAND_TYPES, instructions_number, group_number)
+                                .format(self.COMMAND_TYPES, instruction_number, group_number)
                             )
                             continue
                         if not isinstance(command_list, list):
                             errors.append(
                                 'Instructions command MUST specify a list (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
-                                .format(instructions_number, group_number, command_name)
+                                .format(instruction_number, group_number, command_name)
                             )
                         else:
                             command_number = 0
@@ -544,7 +544,7 @@ class JSONProtocolValidator(object):
                                 if command_from is None or command_to is None or volume is None:
                                     errors.append(
                                         'Instructions Command MUST define "from", "to", and "volume", at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(instructions_number, group_number, command_name, command_number)
+                                        .format(instruction_number, group_number, command_name, command_number)
                                     )
                                     continue
 
@@ -565,12 +565,12 @@ class JSONProtocolValidator(object):
                                 if volume < 0:
                                     errors.append(
                                         'Instructions Command "volume" MUST be positive, but it is {}, at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(volume, instructions_number, group_number, command_name, command_number)
+                                        .format(volume, instruction_number, group_number, command_name, command_number)
                                     )
                                 if volume > 5000:
                                     warnings.append(
                                         'Instructions Command "volume" {} awfully high..., at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(volume, instructions_number, group_number, command_name, command_number)
+                                        .format(volume, instruction_number, group_number, command_name, command_number)
                                     )
 
         messages = {'errors': errors, 'warnings': warnings}
@@ -592,7 +592,7 @@ class JSONProtocolValidator(object):
         if not isinstance(command_direction, dict):
             errors.append(
                 'Instructions Command "{}" MUST be an object (hint: \{ \} ), at instruction number {}, group number {}, command "{}", command number {}'
-                .format(direction, instructions_number, group_number, command_name, command_number)
+                .format(direction, instruction_number, group_number, command_name, command_number)
             )
         else:
             # required - direction attributes
@@ -611,14 +611,14 @@ class JSONProtocolValidator(object):
             if direction_container is None or direction_location is None:
                 errors.append(
                     'Instructions Command "{}" Must define a "container" and "location", at instruction number {}, group number {}, command "{}", command number {}'
-                    .format(direction, instructions_number, group_number, command_name, command_number)
+                    .format(direction, instruction_number, group_number, command_name, command_number)
                 )
             else:
                 # container -> location
                 if direction_container not in self.deck:
                     errors.append(
                         'Instructions Command "{}"\'s container "{}" not found in Deck, at instruction number {}, group number {}, command "{}", command number {}'
-                        .format(direction, direction_container, instructions_number, group_number, command_name)
+                        .format(direction, direction_container, instruction_number, group_number, command_name)
                     )
                 else:
                     # location
@@ -626,7 +626,7 @@ class JSONProtocolValidator(object):
                     if not self.containers.has_location(labware, direction_location):
                         errors.append(
                             'Instruction Command "{}" container "{}" location "{}" not found in "{}", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, direction_container, direction_location, labware, instructions_number, group_number, command_name, command_number)
+                            .format(direction, direction_container, direction_location, labware, instruction_number, group_number, command_name, command_number)
                         )
                 # OPTIONAL
                 # tip-offset
@@ -634,14 +634,14 @@ class JSONProtocolValidator(object):
                     if tip_offset < -30 or tip_offset > 30:
                         warnings.append(
                             'Instruction Command "{}" "tip-offset" has an unusually large magnitude, at instructions number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_number)
+                            .format(direction, instruction_number, group_number, command_name, command_number)
                         )
                 # delay
                 if delay:
                     if delay < 0:
                         errors.append(
                             'Instruction Command "{}" "delay" MUST be positive, at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_number)
+                            .format(direction, instruction_number, group_number, command_name, command_number)
                         )
 
                 # touch-tip
@@ -649,28 +649,28 @@ class JSONProtocolValidator(object):
                     if touch_tip != True and touch_tip != False:
                         errors.append(
                             'Instruction Command "{}" "touch-tip" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_number)
+                            .format(direction, instruction_number, group_number, command_name, command_number)
                         )
                 # blowout
                 if blowout:
                     if blowout != True and blowout != False:
                         errors.append(
                             'Instruction Command "{}" "blowout" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_name)
+                            .format(direction, instruction_number, group_number, command_name, command_name)
                         )
                 # extra-pull
                 if extra_pull:
                     if extra_pull != True and blowout != False:
                         errors.append(
                             'Instruction Command "{}" "extra-pull" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_name)
+                            .format(direction, instruction_number, group_number, command_name, command_name)
                         )
                 # liquid-tracking
                 if liquid_tracking:
                     if liquid_tracking != True and liquid_tracking != False:
                         errors.append(
                             'Instruction Command "{}" "liquid-tracking" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instructions_number, group_number, command_name, command_name)
+                            .format(direction, instruction_number, group_number, command_name, command_name)
                         )
         messages = {'errors': errors, 'warnings': warnings}
         return messages
