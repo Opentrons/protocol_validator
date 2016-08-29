@@ -96,6 +96,9 @@ class JSONProtocolValidator(object):
             warnings.append('Protocol JSON should include an "ingredients" section for completeness"')
         if 'instructions' not in self.protocol:
             warnings.append('Protocol JSON should include an "instructions" section to run')
+        if 'info' not in self.protocol:
+            warnings.append('Protocol JSON can include an "info" section, which is nice: "info":\{"name":string,"description":string,"create-date":string,"version":string,"run-notes":string\}')
+
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
@@ -114,6 +117,13 @@ class JSONProtocolValidator(object):
         ingredients_messages = self.validate_ingredients()
         instructions_messages = self.validate_instructions()
 
+
+        info_dict = self.protocol.data.get('info',{})
+        info_message = None
+        if info_dict:
+            info_message = json.dumps(info_dict)
+
+
         warnings = sum([
             deck_messages.get('warnings'),
             head_messages.get('warnings'),
@@ -128,7 +138,14 @@ class JSONProtocolValidator(object):
             instructions_messages.get('errors')
         ], [])
 
+        no_containers = len(list(self.deck.data.keys()))
+        no_tools = len(list(self.head.data.keys()))
+        instructions_list = self.protocol.data.get('instructions', [])
+        no_instructions = len(instructions_list)
+
         message = {
+            'info': info_message,
+            'salient': {'no_containers':no_containers, 'no_tools':no_tools, 'no_instructions':no_instructions},
             'errors': errors,
             'warnings': warnings,
         }
