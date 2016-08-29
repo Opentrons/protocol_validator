@@ -53,9 +53,9 @@ class JSONProtocolValidator(object):
     ]
 
     DECK_SLOTS = [
-        'A1','A2','A3','A4','A5',
-        'B1','B2','B3','B4','B5',
-        'C1','C2','C3','C4','C5'
+        'A1','B1','C1','D1','E1',
+        'A2','B2','C2','D2','E2',
+        'A3','B3','C3','D3','E3'
     ]
 
 
