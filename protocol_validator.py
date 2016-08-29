@@ -618,7 +618,7 @@ class JSONProtocolValidator(object):
                 if direction_container not in self.deck:
                     errors.append(
                         'Instructions Command "{}"\'s container "{}" not found in Deck, at instruction number {}, group number {}, command "{}", command number {}'
-                        .format(direction, direction_container, instruction_number, group_number, command_name)
+                        .format(direction, direction_container, instruction_number, group_number, command_name, command_number)
                     )
                 else:
                     # location
