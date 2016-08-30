@@ -14,7 +14,7 @@ config = {
     'scripts': [
 
     ],
-    'name': 'protcol_validator',
+    'name': 'protocol_validator',
     'test_suite': 'nose.collector',
     'zip_safe': False
 }
