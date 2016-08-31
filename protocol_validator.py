@@ -181,84 +181,30 @@ class JSONProtocolValidator(object):
             extra_pull_delay = tool_definition.get('extra-pull-delay')
             distribute_percentage = tool_definition.get('distribute-percentage')
             points = tool_definition.get('points')
-            if tool is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "tool" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if tip_racks is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "tip-racks" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if trash_container is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "trash-container" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if multi_channel is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "multi-channel" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if axis is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "axis" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if volume is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "volume" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if down_plunger_speed is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "down-plunger-speed" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if up_plunger_speed is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "up-plunger-speed" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if tip_plunge is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "tip-plunge" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if extra_pull_volume is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "extra-pull-volume" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if extra_pull_delay is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "extra-pull-delay" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if distribute_percentage is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "distribute-percentage" attribute'
-                    .format(tool_name)
-                )
-                continue
-            if points is None:
-                errors.append(
-                    'Head tool "{}" MUST define a "points" attribute'
-                    .format(tool_name)
-                )
-                continue
+
+            tool_belt = [
+                ('tool',tool),
+                ('tip-racks',tip_racks),
+                ('trash-container',trash_container),
+                ('multi-channel',multi_channel),
+                ('axis',axis),
+                ('volume',volume),
+                ('down-plunger-speed',down_plunger_speed),
+                ('up-plunger-speed',up_plunger_speed),
+                ('tip-plunge',tip_plunge),
+                ('extra-pull-volume',extra_pull_volume),
+                ('extra_pull_delay',extra_pull_delay),
+                ('distribute-percentage',distribute_percentage),
+                ('points',points)
+            ]
+
+            for tool_key, tool_value in tool_belt:
+                if tool_value is None:
+                    errors.append(
+                        'Head tool "{}" MUST define a "{}"'
+                        .format(tool_name, tool_key)
+                    )
+
             # tool
             if tool != 'pipette':
                 errors.append(
@@ -269,11 +215,6 @@ class JSONProtocolValidator(object):
             if not isinstance(tip_racks, list):
                 errors.append(
                     'Head tool "{}"\'s "tip-racks" MUST be a list (hint: [ ] )'
-                    .format(tool_name)
-                )
-            elif tip_racks is None:
-                errors.append(
-                    'Head tool "{}" MUST have a "tip-racks" attribute'
                     .format(tool_name)
                 )
             else:
@@ -491,7 +432,10 @@ class JSONProtocolValidator(object):
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
-
+# MAJOR SECTION
+#
+#   INSTRUCTIONS
+#
     def validate_instructions(self) -> list:
         """
         Verifies that instructions are properly defined
@@ -506,102 +450,126 @@ class JSONProtocolValidator(object):
         instruction_number = 0
         for instruction in instructions_data:
             instruction_number += 1
+            instruction_message = validate_instruction, instruction_number)
+            errors.append(instruction_message.get('errors'))
+            warnings.append(instruction_message.get('warnings'))
 
-            if not isinstance(instruction, dict):
+        messages = {'errors': errors, 'warnings': warnings}
+        return messages
+
+# INSTRUCTIONS -> Instruction
+    def validate_instruction(self, instruction, instruction_number) -> list:
+
+        errors = []
+        warnings = []
+
+        if not isinstance(instruction, dict):
+            errors.append(
+                'Instructions should be JSON objects (hint: \{ \} ), at instruction number {}'
+                .format(instruction_number)
+            )
+            continue
+
+        tool = instruction.get('tool')
+        groups = instruction.get('groups')
+
+        if tool is None or groups is None:
+            errors.append(
+                'Instructions MUST specify a "tool" and a "groups" attribute, at instruction number {}'
+                .format(instruction_number)
+            )
+            continue
+
+        if tool not in self.head:
+            errors.append(
+                'Instructions tool "{}" not found in Head, at instruction number {}'
+                .format(tool, instruction_number)
+            )
+        if not isinstance(groups, list):
+            errors.append(
+                'Instructions "group" must be a list (hint: [ ] ), at instruction number {}'
+                .format(instruction_number)
+            )
+        else:
+            group_number = 0
+            for group in groups:
+                group_number +=1
+                group_message = validate(group, instruction_number, group_number)
+                errors.append(group_message.get('errors'))
+                warnings.append(group_message.get('warnings'))
+
+        messages = {'errors': errors, 'warnings': warnings}
+        return messages
+
+# INSTRUCTIONS -> Instruction -> Group
+    def validate_group(self, group, instruction_number, group_number) -> list:
+        errors = []
+        warnings = []
+
+        if len(group) != 1:
+            errors.append(
+                'Instructions "groups" group must have only one element, at instruction number {}, group number {}'
+                .format(instruction_number, group_number)
+            )
+        else:
+            command_name, command_list = list(group.items())[0]
+            if command_name not in self.COMMAND_TYPES:
                 errors.append(
-                    'Instructions should be JSON objects (hint: \{ \} ), at instruction number {}'
-                    .format(instruction_number)
+                    'Instructions command MUST be one of {}, at instruction number {}, group number {}'
+                    .format(self.COMMAND_TYPES, instruction_number, group_number)
                 )
                 continue
-
-            tool = instruction.get('tool')
-            groups = instruction.get('groups')
-
-            if tool is None or groups is None:
+            if not isinstance(command_list, list):
                 errors.append(
-                    'Instructions MUST specify a "tool" and a "groups" attribute, at instruction number {}'
-                    .format(instruction_number)
-                )
-                continue
-
-            if tool not in self.head:
-                errors.append(
-                    'Instructions tool "{}" not found in Head, at instruction number {}'
-                    .format(tool, instruction_number)
-                )
-            if not isinstance(groups, list):
-                errors.append(
-                    'Instructions "group" must be a list (hint: [ ] ), at instruction number {}'
-                    .format(instruction_number)
+                    'Instructions Command MUST specify a list (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
+                    .format(instruction_number, group_number, command_name)
                 )
             else:
-                group_number = 0
-                for group in groups:
-                    group_number += 1
-                    if len(group) != 1:
+                command_number = 0
+                for command in command_list:
+                    command_number += 1
+                    command_from = command.get('from', {})
+                    command_to = command.get('to', {})
+                    volume = command.get('volume')
+
+                    if command_from is None or command_to is None or volume is None:
                         errors.append(
-                            'Instructions "groups" group must have only one element, at instruction number {}, group number {}'
-                            .format(instruction_number, group_number)
+                            'Instructions Command MUST define "from", "to", and "volume", at instruction number {}, group number {}, command "{}", command number {}'
+                            .format(instruction_number, group_number, command_name, command_number)
                         )
-                    else:
-                        command_name, command_list = list(group.items())[0]
-                        if command_name not in self.COMMAND_TYPES:
-                            errors.append(
-                                'Instructions command MUST be one of {}, at instruction number {}, group number {}'
-                                .format(self.COMMAND_TYPES, instruction_number, group_number)
-                            )
-                            continue
-                        if not isinstance(command_list, list):
-                            errors.append(
-                                'Instructions command MUST specify a list (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
-                                .format(instruction_number, group_number, command_name)
-                            )
-                        else:
-                            command_number = 0
-                            for command in command_list:
-                                command_number += 1
-                                command_from = command.get('from', {})
-                                command_to = command.get('to', {})
-                                volume = command.get('volume')
+                        continue
 
-                                if command_from is None or command_to is None or volume is None:
-                                    errors.append(
-                                        'Instructions Command MUST define "from", "to", and "volume", at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(instruction_number, group_number, command_name, command_number)
-                                    )
-                                    continue
+                    from_messages = self.validate_direction('from', command_from, instruction_number, group_number, command_name, command_number)
 
-                                from_messages = self.validate_direction('from', command_from, instruction_number, group_number, command_name, command_number)
+                    to_messages = self.validate_direction('to', command_from, instruction_number, group_number, command_name, command_number)
 
-                                to_messages = self.validate_direction('to', command_from, instruction_number, group_number, command_name, command_number)
+                    errors = sum([
+                        from_messages.get('errors'),
+                        to_messages.get('errors')
+                    ],[])
+                    warnings = sum([
+                        from_messages.get('warnings'),
+                        to_messages.get('warnings')
+                    ],[])
 
-                                errors = sum([
-                                    from_messages.get('errors'),
-                                    to_messages.get('errors')
-                                ],[])
-                                warnings = sum([
-                                    from_messages.get('warnings'),
-                                    to_messages.get('warnings')
-                                ],[])
-
-                                # volume
-                                if volume < 0:
-                                    errors.append(
-                                        'Instructions Command "volume" MUST be positive, but it is {}, at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(volume, instruction_number, group_number, command_name, command_number)
-                                    )
-                                if volume > 5000:
-                                    warnings.append(
-                                        'Instructions Command "volume" {} awfully high..., at instruction number {}, group number {}, command "{}", command number {}'
-                                        .format(volume, instruction_number, group_number, command_name, command_number)
-                                    )
+                    # volume
+                    if volume < 0:
+                        errors.append(
+                            'Instructions Command "volume" MUST be positive, but it is {}, at instruction number {}, group number {}, command "{}", command number {}'
+                            .format(volume, instruction_number, group_number, command_name, command_number)
+                        )
+                    if volume > 5000:
+                        warnings.append(
+                            'Instructions Command "volume" {} awfully high..., at instruction number {}, group number {}, command "{}", command number {}'
+                            .format(volume, instruction_number, group_number, command_name, command_number)
+                        )
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
 
 
-
+# INSTRUCTIONS -> Instruction -> Group -> Command Direction
     def validate_direction(self, direction: "from or to dict",
                         command_direction,
                         instruction_number,
