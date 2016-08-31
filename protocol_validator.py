@@ -17,6 +17,8 @@ class Containers(object):
 class Head(object):
     def __init__(self, json_data: dict):
         self.data = json_data
+        #print('Head initiated')
+        #print('head: ',json.dumps(self.data, indent=1))
 
     def __contains__(self, key):
         return key in list(self.data.keys())
@@ -25,6 +27,8 @@ class Head(object):
 class Deck(object):
     def __init__(self, json_data: dict):
         self.data = json_data
+        #print('Deck initiated')
+        #print('deck: ',json.dumps(self.data, indent=1))
 
     def __contains__(self, key):
         return key in list(self.data.keys())
@@ -33,6 +37,8 @@ class Deck(object):
 class Protocol(object):
     def __init__(self, json_data: dict):
         self.data = json_data
+        #print('inside Protocol init')
+        #print('protocol data: ', json.dumps(self.data, indent=1))
         self.head = Head(self.data.get('head', {}))
         self.deck = Deck(self.data.get('deck', {}))
 
@@ -60,25 +66,38 @@ class JSONProtocolValidator(object):
         self.containers = None
         self.protocol = None
         try:
+            # 1. check if dictionary to load object directly
             if isinstance(containers, dict):
                 self.containers = Containers(containers)
+            # 2. otherwise, check if filepath to load from file
             elif os.path.exists(os.path.dirname(containers)):
                 with open(containers) as containers_json:
                     self.containers = Containers(json.load(containers_json))
+            # 3. otherwise, try loading directly from data entered as string
             else:
                 self.containers = Containers(json.loads(containers))
+
+            # 1. check if dictionary to load object directly
             if isinstance(protocol, dict):
+                print('protocol is dict')
                 self.protocol = Protocol(protocol)
+            # 2. otherwise, check if filepath to load from file
             elif os.path.exists(os.path.dirname(protocol)):
+                print('protocol is json file')
                 with open(protocol) as protocol_json:
                     self.protocol = Protocol(json.load(protocol_json))
+            # 3. otherwise, try loading directly from data entered as string
             else:
+                print('protocol is string')
                 self.protocol = Protocol(json.loads(protocol))
         except:
             print(sys.exc_info()[0]) # TODO: log this instead of print
             return
+        #print('inside JSONProtocolValidator init')
         self.head = self.protocol.head
         self.deck = self.protocol.deck
+        #print('head data: ', json.dumps(self.head.data))
+        #print('deck data: ', json.dumps(self.deck.data))
 
 
     def ensure_main_sections(self):
@@ -107,6 +126,17 @@ class JSONProtocolValidator(object):
         """
         errors = []
         warnings = []
+        messages = {
+            'info': '',
+            'salient': '',
+            'errors': errors,
+            'warnings': warnings
+        }
+
+        main_section_errors = self.ensure_main_sections()
+        if main_section_errors.get('errors'):
+            messages['errors'].extend(main_section_errors.get('errors'))
+            return messages
 
         info_dict = self.protocol.data.get('info',{})
         info_message = None
@@ -118,20 +148,15 @@ class JSONProtocolValidator(object):
         instructions_list = self.protocol.data.get('instructions', [])
         no_instructions = len(instructions_list)
 
-        main_section_errors = self.ensure_main_sections()
-        if main_section_errors.get('errors'):
-            message = {
-                'info': info_message,
-                'salient': {'no_containers':no_containers, 'no_tools':no_tools, 'no_instructions':no_instructions},
-                'errors': errors,
-                'warnings': warnings
-            }
-            return message
+        head_data = self.protocol.data.get('head', {})
+        deck_data = self.protocol.data.get('deck', {})
+        ingredients_data = self.protocol.data.get('ingredients', {})
 
-        deck_messages = self.validate_deck()
-        head_messages = self.validate_head()
-        ingredients_messages = self.validate_ingredients()
-        instructions_messages = self.validate_instructions()
+
+        deck_messages = self.validate_deck(deck_data)
+        head_messages = self.validate_head(head_data)
+        ingredients_messages = self.validate_ingredients(ingredients_data)
+        instructions_messages = self.validate_instructions(instructions_list)
 
         warnings = sum([
             deck_messages.get('warnings'),
@@ -158,14 +183,13 @@ class JSONProtocolValidator(object):
         return message
 
 
-    def validate_head(self) -> list:
+    def validate_head(self, head_data) -> dict:
         """
         Verifies that head is properly defined.
         """
         print('validating head') # TODO: use logger here instead
         errors = []
         warnings = []
-        head_data = self.protocol.data.get('head', {})
 
         for tool_name, tool_definition in head_data.items():
             tool = tool_definition.get('tool')
@@ -373,7 +397,7 @@ class JSONProtocolValidator(object):
         return messages
 
 
-    def validate_deck(self) -> list:
+    def validate_deck(self, deck_data) -> dict:
         """
         Verifies that all users labwares are defined in the containers
         data
@@ -381,9 +405,6 @@ class JSONProtocolValidator(object):
         print('validating deck'); # TODO: use logger here instead
         errors = []
         warnings = []
-
-        deck_data = self.protocol.data.get('deck', {})
-
 
         for container_name, container_definition in deck_data.items():
             labware = container_definition.get('labware')
@@ -416,15 +437,13 @@ class JSONProtocolValidator(object):
         return messages
 
 
-    def validate_ingredients(self) -> list:
+    def validate_ingredients(self, ingredients_data) -> list:
         """
         Verifies that the ingredients section is properly defined
         """
         print('validating ingredients') # TODO: user logger here instead
         errors = []
         warnings = []
-
-        ingredients_data = self.protocol.data.get('ingredients', {})
 
         if ingredients_data:
             warnings.append(
@@ -439,7 +458,7 @@ class JSONProtocolValidator(object):
 #
 #   INSTRUCTIONS
 #
-    def validate_instructions(self) -> list:
+    def validate_instructions(self, instructions_data) -> dict:
         """
         Verifies that instructions are properly defined
         """
@@ -448,20 +467,18 @@ class JSONProtocolValidator(object):
         errors = []
         warnings = []
 
-        instructions_data = self.protocol.data.get('instructions', [])
-
         instruction_number = 0
         for instruction in instructions_data:
             instruction_number += 1
-            instruction_message = validate_instruction, instruction_number)
-            errors.append(instruction_message.get('errors'))
-            warnings.append(instruction_message.get('warnings'))
+            instruction_message = self.validate_instruction(instruction, instruction_number)
+            errors.extend(instruction_message.get('errors'))
+            warnings.extend(instruction_message.get('warnings'))
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
 # INSTRUCTIONS -> Instruction
-    def validate_instruction(self, instruction, instruction_number) -> list:
+    def validate_instruction(self, instruction, instruction_number) -> dict:
 
         errors = []
         warnings = []
@@ -495,15 +512,15 @@ class JSONProtocolValidator(object):
                 group_number = 0
                 for group in groups:
                     group_number +=1
-                    group_message = validate(group, instruction_number, group_number)
-                    errors.append(group_message.get('errors'))
-                    warnings.append(group_message.get('warnings'))
+                    group_messages = self.validate_group(group, instruction_number, group_number)
+                    errors.extend(group_messages.get('errors'))
+                    warnings.extend(group_messages.get('warnings'))
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
 # INSTRUCTIONS -> Instruction -> Group
-    def validate_group(self, group, instruction_number, group_number) -> list:
+    def validate_group(self, group, instruction_number, group_number) -> dict:
         errors = []
         warnings = []
 
@@ -520,28 +537,30 @@ class JSONProtocolValidator(object):
             # Consolidate -> {to:{},[from's]}
             # Mix -> [{mix}]
             if command_name == self.COMMAND_TYPES[0]: # Transfer
-                command_messages = validate_transfer(command_value, instruction_number, group_number)
-            elif command_name == self.COMMAND_TYPE[1]: # Distribute
-                command_messages = validate_dist_cons(instruction_number, group_number)
-            elif command_name == self.COMMAND_TYPE[2]: # Consolidate
-                command_messages = validate_dist_cons(instruction_number, group_number, False)
-            elif command_name == self.COMMAND_TYPE[3]: # Mix
-                command_messages = validate_mix(instruction_number, group_number)
+                command_messages = self.validate_transfer(command_value, instruction_number, group_number)
+            elif command_name == self.COMMAND_TYPES[1]: # Distribute
+                command_messages = self.validate_dist_cons(command_value, instruction_number, group_number)
+            elif command_name == self.COMMAND_TYPES[2]: # Consolidate
+                command_messages = self.validate_dist_cons(command_value, instruction_number, group_number, False)
+            elif command_name == self.COMMAND_TYPES[3]: # Mix
+                command_messages = self.validate_mix(command_value, instruction_number, group_number)
             else:
                 errors.append(
                     'Instructions command MUST be one of {}, at instruction number {}, group number {}'
                     .format(self.COMMAND_TYPES, instruction_number, group_number)
                 )
-                continue
 
-            errors.append(command_messages.get('errors'))
-            warnings.append(command_messages.get('warnings'))
+
+            errors.extend(command_messages.get('errors'))
+            warnings.extend(command_messages.get('warnings'))
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
 
-    def validate_transfer(self, command_value, instruction_number, group_number) -> list:
+    def validate_transfer(self, command_value, instruction_number, group_number) -> dict:
+        errors = []
+        warnings = []
         if not isinstance(command_value, list):
             errors.append(
                 'Instructions Transfer MUST specify a JSON array (hint: [ ] ), at instruction number {}, group number {}'
@@ -564,11 +583,11 @@ class JSONProtocolValidator(object):
                     from_messages = self.validate_direction('from', command_from, instruction_number, group_number, command_name, command_number)
                     to_messages = self.validate_direction('to', command_from, instruction_number, group_number, command_name, command_number)
 
-                    errors.append(sum([
+                    errors.extend(sum([
                         from_messages.get('errors'),
                         to_messages.get('errors')
                     ],[]))
-                    warnings.append(sum([
+                    warnings.extend(sum([
                         from_messages.get('warnings'),
                         to_messages.get('warnings')
                     ],[]))
@@ -589,7 +608,7 @@ class JSONProtocolValidator(object):
         return messages
 
 
-    def validate_dist_cons(self, command_value, instruction_number, group_number, dist_or_cons=True) -> list:
+    def validate_dist_cons(self, command_value, instruction_number, group_number, dist_or_cons=True) -> dict:
         errors = []
         warnings = []
         dist_cons = 'Distribute'
@@ -601,7 +620,7 @@ class JSONProtocolValidator(object):
             list_label = 'from'
         if not isinstance(command_value, dict):
             errors.append(
-                'Instructions {} MUST specify a JSON object (hint: \{ \} ), at instruction number {}, group number {}'
+                'Instructions {} MUST specify a JSON object (hint: {{}} ), at instruction number {}, group number {}'
                 .format(dist_cons, instruction_number, group_number)
             )
         else:
@@ -622,17 +641,17 @@ class JSONProtocolValidator(object):
                 # Single Direction
                 if not isinstance(single_direction, dict):
                     errors.append(
-                        'Instructions {} "{}" must be a JSON object (hint: \{ \} ), at instruction number {}, group_number{}'
+                        'Instructions {} "{}" must be a JSON object (hint: {{}} ), at instruction number {}, group_number{}'
                         .format(dist_cons, single_label, instruction_number, group_number)
                     )
                 else:
-                    direction_message = validate_direction(single_label, distribute_from, instruction_number, group_number, dist_cons, 'n/a')
-                    errors.append(direction_message.get('errors'))
-                    warnings.append(direction_message.get('warnings'))
+                    direction_message = self.validate_direction(single_label, distribute_from, instruction_number, group_number, dist_cons, 'n/a')
+                    errors.extend(direction_message.get('errors'))
+                    warnings.extend(direction_message.get('warnings'))
                 # Direction List
                 if not isinstance(direction_list, list):
                     errors.append(
-                        'Instructions {} "{}" must be a JSON array (hint: \[ \] ), at instruction number {}, group_number{}'
+                        'Instructions {} "{}" must be a JSON array (hint: [ ] ), at instruction number {}, group_number{}'
                         .format(dist_cons, list_label, instruction_number, group_number)
                     )
                 else:
@@ -640,8 +659,8 @@ class JSONProtocolValidator(object):
                     for direction in direction_list:
                         direction_number += 1
                         direction_messages = self.validate_direction(list_label, direction, instruction_number, group_number, dist_cons, direction_number)
-                        errors.append(direction_messages.get('errors'))
-                        warnings.append(direction_messages.get('warnings'))
+                        errors.extend(direction_messages.get('errors'))
+                        warnings.extend(direction_messages.get('warnings'))
 
                 if blowout != True and blowout != False:
                     errors.append(
@@ -652,21 +671,21 @@ class JSONProtocolValidator(object):
         return messages
 
 
-    def validate_mix(self, command_value, insruction_number, group_number) -> list:
+    def validate_mix(self, mix_list, instruction_number, group_number) -> dict:
         errors = []
         warnings = []
-        if not isinstance(command_value, list):
+        if not isinstance(mix_list, list):
             errors.append(
                 'Instructions Mix MUST specify a JSON array (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
                 .format(instruction_number, group_number, 'Mix')
             )
         else:
             mix_number = 0
-            for mix in command_value:
+            for mix in mix_list:
                 mix_number += 1
                 mix_messages = self.validate_direction('mix', mix, instruction_number, group_number, 'mix', mix_number)
-                errors.append(mix_message.get('errors'))
-                warnings.append(mix_message.get('warnings'))
+                errors.extend(mix_messages.get('errors'))
+                warnings.extend(mix_messages.get('warnings'))
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
@@ -711,9 +730,10 @@ class JSONProtocolValidator(object):
             else:
                 # container -> location
                 if direction_container not in self.deck:
+                    print('DECK: ', list(self.deck.data.keys()))
                     errors.append(
                         'Instructions {} "{}"\'s container "{}" not found in Deck, at instruction number {}, group number {}, command number {}'
-                        .format(command_name, direction, instruction_number, group_number, command_number)
+                        .format(command_name, direction, direction_container, instruction_number, group_number, command_number)
                     )
                 else:
                     # location
@@ -721,7 +741,7 @@ class JSONProtocolValidator(object):
                     if not self.containers.has_location(labware, direction_location):
                         errors.append(
                             'Instruction {} "{}" container "{}" location "{}" not found in "{}", at instruction number {}, group number {}, command number {}'
-                            .format(command_name, direction, instruction_number, group_number, command_number)
+                            .format(command_name, direction, direction_container, labware,instruction_number, group_number, command_number)
                         )
                 # OPTIONAL
                 # tip-offset
