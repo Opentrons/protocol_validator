@@ -214,7 +214,7 @@ class JSONProtocolValidator(object):
             # tip-racks
             if not isinstance(tip_racks, list):
                 errors.append(
-                    'Head tool "{}"\'s "tip-racks" MUST be a list (hint: [ ] )'
+                    'Head tool "{}"\'s "tip-racks" MUST be a JSON array (hint: [ ] )'
                     .format(tool_name)
                 )
             else:
@@ -330,7 +330,7 @@ class JSONProtocolValidator(object):
             # points
             if not isinstance(points, list):
                 errors.append(
-                    'Head tool "{}"\'s "points" MUST be a list (hint: [ ])'
+                    'Head tool "{}"\'s "points" MUST be a JSON array (hint: [ ])'
                     .format(tool_name)
                 )
             else:
@@ -468,35 +468,33 @@ class JSONProtocolValidator(object):
                 'Instructions should be JSON objects (hint: \{ \} ), at instruction number {}'
                 .format(instruction_number)
             )
-            continue
-
-        tool = instruction.get('tool')
-        groups = instruction.get('groups')
-
-        if tool is None or groups is None:
-            errors.append(
-                'Instructions MUST specify a "tool" and a "groups" attribute, at instruction number {}'
-                .format(instruction_number)
-            )
-            continue
-
-        if tool not in self.head:
-            errors.append(
-                'Instructions tool "{}" not found in Head, at instruction number {}'
-                .format(tool, instruction_number)
-            )
-        if not isinstance(groups, list):
-            errors.append(
-                'Instructions "group" must be a list (hint: [ ] ), at instruction number {}'
-                .format(instruction_number)
-            )
         else:
-            group_number = 0
-            for group in groups:
-                group_number +=1
-                group_message = validate(group, instruction_number, group_number)
-                errors.append(group_message.get('errors'))
-                warnings.append(group_message.get('warnings'))
+            tool = instruction.get('tool')
+            groups = instruction.get('groups')
+
+            if tool is None or groups is None:
+                errors.append(
+                    'Instructions MUST specify a "tool" and a "groups" attribute, at instruction number {}'
+                    .format(instruction_number)
+                )
+            else:
+                if tool not in self.head:
+                    errors.append(
+                        'Instructions tool "{}" not found in Head, at instruction number {}'
+                        .format(tool, instruction_number)
+                    )
+            if not isinstance(groups, list):
+                errors.append(
+                    'Instructions "group" must be a JSON array (hint: [ ] ), at instruction number {}'
+                    .format(instruction_number)
+                )
+            else:
+                group_number = 0
+                for group in groups:
+                    group_number +=1
+                    group_message = validate(group, instruction_number, group_number)
+                    errors.append(group_message.get('errors'))
+                    warnings.append(group_message.get('warnings'))
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
@@ -512,62 +510,162 @@ class JSONProtocolValidator(object):
                 .format(instruction_number, group_number)
             )
         else:
-            command_name, command_list = list(group.items())[0]
-            if command_name not in self.COMMAND_TYPES:
+            command_name, command_value = list(group.items())[0]
+            # Originally written for Transfer
+            # Transfer -> [{to:{},from:{},volume:int,float}]
+            # Distribute -> {from:{},[to's]}
+            # Consolidate -> {to:{},[from's]}
+            # Mix -> [{mix}]
+            if command_name == self.COMMAND_TYPES[0]: # Transfer
+                command_messages = validate_transfer(command_value, instruction_number, group_number)
+            elif command_name == self.COMMAND_TYPE[1]: # Distribute
+                command_messages = validate_dist_cons(instruction_number, group_number)
+            elif command_name == self.COMMAND_TYPE[2]: # Consolidate
+                command_messages = validate_dist_cons(instruction_number, group_number, False)
+            elif command_name == self.COMMAND_TYPE[3]: # Mix
+                command_messages = validate_mix(instruction_number, group_number)
+            else:
                 errors.append(
                     'Instructions command MUST be one of {}, at instruction number {}, group number {}'
                     .format(self.COMMAND_TYPES, instruction_number, group_number)
                 )
                 continue
-            if not isinstance(command_list, list):
-                errors.append(
-                    'Instructions Command MUST specify a list (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
-                    .format(instruction_number, group_number, command_name)
-                )
-            else:
-                command_number = 0
-                for command in command_list:
-                    command_number += 1
-                    command_from = command.get('from', {})
-                    command_to = command.get('to', {})
-                    volume = command.get('volume')
 
-                    if command_from is None or command_to is None or volume is None:
-                        errors.append(
-                            'Instructions Command MUST define "from", "to", and "volume", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(instruction_number, group_number, command_name, command_number)
-                        )
-                        continue
+            errors.append(command_messages.get('errors'))
+            warnings.append(command_messages.get('warnings'))
 
+        messages = {'errors': errors, 'warnings': warnings}
+        return messages
+
+
+    def validate_transfer(self, command_value, instruction_number, group_number) -> list:
+        if not isinstance(command_value, list):
+            errors.append(
+                'Instructions Transfer MUST specify a JSON array (hint: [ ] ), at instruction number {}, group number {}'
+                .format(instruction_number, group_number)
+            )
+        else:
+            command_number = 0
+            for command in command_value:
+                command_number += 1
+                command_from = command.get('from', {})
+                command_to = command.get('to', {})
+                volume = command.get('volume')
+
+                if command_from is None or command_to is None or volume is None:
+                    errors.append(
+                        'Instructions Transfer MUST define "from" list, "to" list, and "volume", at instruction number {}, group number {}, command "{}", command number {}'
+                        .format(instruction_number, group_number, command_name, command_number)
+                    )
+                else:
                     from_messages = self.validate_direction('from', command_from, instruction_number, group_number, command_name, command_number)
-
                     to_messages = self.validate_direction('to', command_from, instruction_number, group_number, command_name, command_number)
 
-                    errors = sum([
+                    errors.append(sum([
                         from_messages.get('errors'),
                         to_messages.get('errors')
-                    ],[])
-                    warnings = sum([
+                    ],[]))
+                    warnings.append(sum([
                         from_messages.get('warnings'),
                         to_messages.get('warnings')
-                    ],[])
+                    ],[]))
 
                     # volume
                     if volume < 0:
                         errors.append(
-                            'Instructions Command "volume" MUST be positive, but it is {}, at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(volume, instruction_number, group_number, command_name, command_number)
+                            'Instructions Transfer "volume" MUST be positive, but it is {}, at instruction number {}, group number {}, command number {}'
+                            .format(volume, instruction_number, group_number, command_number)
                         )
                     if volume > 5000:
                         warnings.append(
-                            'Instructions Command "volume" {} awfully high..., at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(volume, instruction_number, group_number, command_name, command_number)
+                            'Instructions Transfer "volume" {} is  awfully high..., at instruction number {}, group number {}, command number {}'
+                            .format(volume, instruction_number, group_number, command_number)
                         )
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
 
+    def validate_dist_cons(self, command_value, instruction_number, group_number, dist_or_cons=True) -> list:
+        errors = []
+        warnings = []
+        dist_cons = 'Distribute'
+        single_label = 'from'
+        list_label = 'to'
+        if dist_or_cons == False:
+            dist_cons = 'Consolidate'
+            single_label = 'to'
+            list_label = 'from'
+        if not isinstance(command_value, dict):
+            errors.append(
+                'Instructions {} MUST specify a JSON object (hint: \{ \} ), at instruction number {}, group number {}'
+                .format(dist_cons, instruction_number, group_number)
+            )
+        else:
+            if dist_or_cons:
+                direction_list = command_value.get('from')
+                single_direction = command_value.get('to')
+            else:
+                direction_list = command_value.get('to')
+                single_direction = command_value.get('from')
+            blowout = command_value.get('blowout')
+
+            if direction_list is None or single_direction is None:
+                errors.append(
+                    'Instructions {} MUST define "from" and "to" attributes, at instruction_number {}, group_number {}'
+                    .format(dist_cons, instruction_number, group_number)
+                )
+            else:
+                # Single Direction
+                if not isinstance(single_direction, dict):
+                    errors.append(
+                        'Instructions {} "{}" must be a JSON object (hint: \{ \} ), at instruction number {}, group_number{}'
+                        .format(dist_cons, single_label, instruction_number, group_number)
+                    )
+                else:
+                    direction_message = validate_direction(single_label, distribute_from, instruction_number, group_number, dist_cons, 'n/a')
+                    errors.append(direction_message.get('errors'))
+                    warnings.append(direction_message.get('warnings'))
+                # Direction List
+                if not isinstance(direction_list, list):
+                    errors.append(
+                        'Instructions {} "{}" must be a JSON array (hint: \[ \] ), at instruction number {}, group_number{}'
+                        .format(dist_cons, list_label, instruction_number, group_number)
+                    )
+                else:
+                    direction_number = 0
+                    for direction in direction_list:
+                        direction_number += 1
+                        direction_messages = self.validate_direction(list_label, direction, instruction_number, group_number, dist_cons, direction_number)
+                        errors.append(direction_messages.get('errors'))
+                        warnings.append(direction_messages.get('warnings'))
+
+                if blowout != True and blowout != False:
+                    errors.append(
+                        'Instruction {} "blowout" MUST be "true" or "false", at instruction number {}, group number {}'
+                        .format(dist_const, instruction_number, group_number)
+                    )
+        messages = {'errors': errors, 'warnings': warnings}
+        return messages
+
+
+    def validate_mix(self, command_value, insruction_number, group_number) -> list:
+        errors = []
+        warnings = []
+        if not isinstance(command_value, list):
+            errors.append(
+                'Instructions Mix MUST specify a JSON array (hint: [ ] ), at instruction number {}, group number {}, command "{}"'
+                .format(instruction_number, group_number, 'Mix')
+            )
+        else:
+            mix_number = 0
+            for mix in command_value:
+                mix_number += 1
+                mix_messages = self.validate_direction('mix', mix, instruction_number, group_number, 'mix', mix_number)
+                errors.append(mix_message.get('errors'))
+                warnings.append(mix_message.get('warnings'))
+        messages = {'errors': errors, 'warnings': warnings}
+        return messages
 
 # INSTRUCTIONS -> Instruction -> Group -> Command Direction
     def validate_direction(self, direction: "from or to dict",
@@ -582,8 +680,8 @@ class JSONProtocolValidator(object):
         # direction (from or to)
         if not isinstance(command_direction, dict):
             errors.append(
-                'Instructions Command "{}" MUST be an object (hint: \{ \} ), at instruction number {}, group number {}, command "{}", command number {}'
-                .format(direction, instruction_number, group_number, command_name, command_number)
+                'Instructions {} "{}" MUST be an object (hint: \{ \} ), at instruction number {}, group number {}, command number {}'
+                .format(command_name, direction,instruction_number, group_number, command_number)
             )
         else:
             # required - direction attributes
@@ -597,71 +695,83 @@ class JSONProtocolValidator(object):
             blowout = command_direction.get('blowout')
             extra_pull = command_direction.get('extra-pull')
             liquid_tracking = command_direction.get('liquid-tracking')
+            repetitions = None
+            if direction == 'mix':
+                repetitions = command_direction.get('repetitions')
 
 
             if direction_container is None or direction_location is None:
                 errors.append(
-                    'Instructions Command "{}" Must define a "container" and "location", at instruction number {}, group number {}, command "{}", command number {}'
-                    .format(direction, instruction_number, group_number, command_name, command_number)
+                    'Instructions {} "{}" Must define a "container" and "location", at instruction number {}, group number {}, command number {}'
+                    .format(command_name, direction, instruction_number, group_number, command_number)
                 )
             else:
                 # container -> location
                 if direction_container not in self.deck:
                     errors.append(
-                        'Instructions Command "{}"\'s container "{}" not found in Deck, at instruction number {}, group number {}, command "{}", command number {}'
-                        .format(direction, direction_container, instruction_number, group_number, command_name, command_number)
+                        'Instructions {} "{}"\'s container "{}" not found in Deck, at instruction number {}, group number {}, command number {}'
+                        .format(command_name, direction, instruction_number, group_number, command_number)
                     )
                 else:
                     # location
                     labware = self.deck.data.get(direction_container).get('labware')
                     if not self.containers.has_location(labware, direction_location):
                         errors.append(
-                            'Instruction Command "{}" container "{}" location "{}" not found in "{}", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, direction_container, direction_location, labware, instruction_number, group_number, command_name, command_number)
+                            'Instruction {} "{}" container "{}" location "{}" not found in "{}", at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
                 # OPTIONAL
                 # tip-offset
                 if tip_offset:
                     if tip_offset < -30 or tip_offset > 30:
                         warnings.append(
-                            'Instruction Command "{}" "tip-offset" has an unusually large magnitude, at instructions number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_number)
+                            'Instruction {} "{}" "tip-offset" has an unusually large magnitude, at instructions number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
                 # delay
                 if delay:
                     if delay < 0:
                         errors.append(
-                            'Instruction Command "{}" "delay" MUST be positive, at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_number)
+                            'Instruction {} "{}" "delay" MUST be positive, at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
 
                 # touch-tip
                 if touch_tip:
                     if touch_tip != True and touch_tip != False:
                         errors.append(
-                            'Instruction Command "{}" "touch-tip" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_number)
+                            'Instruction {} "{}" "touch-tip" MUST be "true" or "false", at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
                 # blowout
                 if blowout:
                     if blowout != True and blowout != False:
                         errors.append(
-                            'Instruction Command "{}" "blowout" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_name)
+                            'Instruction {} "{}" "blowout" MUST be "true" or "false", at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
                 # extra-pull
                 if extra_pull:
                     if extra_pull != True and blowout != False:
                         errors.append(
-                            'Instruction Command "{}" "extra-pull" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_name)
+                            'Instruction {} "{}" "extra-pull" MUST be "true" or "false", at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
                 # liquid-tracking
                 if liquid_tracking:
                     if liquid_tracking != True and liquid_tracking != False:
                         errors.append(
-                            'Instruction Command "{}" "liquid-tracking" MUST be "true" or "false", at instruction number {}, group number {}, command "{}", command number {}'
-                            .format(direction, instruction_number, group_number, command_name, command_name)
+                            'Instruction {} "{}" "liquid-tracking" MUST be "true" or "false", at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
                         )
+                # mix->repetitions
+                if direction == 'mix':
+                    if repetitions is None:
+                        warnings.append(
+                            'Instruction {} "{}" "repetitions" could be set but is not, at instruction number {}, group number {}, command number {}'
+                            .format(command_name, direction, instruction_number, group_number, command_number)
+                        )
+
+
         messages = {'errors': errors, 'warnings': warnings}
         return messages
