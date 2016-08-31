@@ -40,9 +40,6 @@ class Protocol(object):
         return key in list(self.data.keys())
 
 
-
-
-
 class JSONProtocolValidator(object):
 
     COMMAND_TYPES = [
@@ -83,6 +80,7 @@ class JSONProtocolValidator(object):
         self.head = self.protocol.head
         self.deck = self.protocol.deck
 
+
     def ensure_main_sections(self):
         errors = []
         warnings = []
@@ -102,6 +100,7 @@ class JSONProtocolValidator(object):
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
+
 
     def validate(self) -> list:
         """Entry method
@@ -157,6 +156,7 @@ class JSONProtocolValidator(object):
         }
 
         return message
+
 
     def validate_head(self) -> list:
         """
@@ -372,6 +372,7 @@ class JSONProtocolValidator(object):
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
+
     def validate_deck(self) -> list:
         """
         Verifies that all users labwares are defined in the containers
@@ -414,6 +415,7 @@ class JSONProtocolValidator(object):
         messages = {'errors': errors, 'warnings': warnings}
         return messages
 
+
     def validate_ingredients(self) -> list:
         """
         Verifies that the ingredients section is properly defined
@@ -431,6 +433,7 @@ class JSONProtocolValidator(object):
 
         messages = {'errors': errors, 'warnings': warnings}
         return messages
+
 
 # MAJOR SECTION
 #

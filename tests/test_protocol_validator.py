@@ -7,6 +7,40 @@ import protocol_validator.protocol_validator as pvalid
 
 
 class ProtocolvalidatorTestCase(unittest.TestCase):
+
+    def __init__(self):
+        self.dummy_direction = {
+
+        }
+
+        self.dummy_direction_mix = {
+
+        }
+
+        self.dummy_mix = {
+        
+        }
+
+        self.dummy_consolidate = {
+
+        }
+
+        self.dummy_distribute = {
+
+        }
+
+        self.dummy_transfer = {
+
+        }
+
+        self.dummy_instruction = {
+
+        }
+
+        self.dummy_instructions = {
+
+        }
+
     def setUp(self):
         self.validator = pvalid.JSONProtocolValidator(
             'tests/fixtures/protocol.json',
@@ -49,17 +83,37 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
         print(json.dumps(deck_errors, sort_keys=True, indent=4))
         self.assertEqual(len(deck_errors), 4)
 
-    def test_validate_head(self):
+
+    def test_validate_ingredients_allpassing(self):
         pass
 
 
-    def test_validate_instructions(self):
+    def test_direction_allpassing(self):
         pass
 
-
-    def test_validate_ingredients(self):
+    def test_direction_mix_allpassing(self):
         pass
 
+    def test_mix_all_passing(self):
+        pass
+
+    def test_distribute_all_passing(self):
+        pass
+
+    def test_consolidate_allpassing(self):
+        pass
+
+    def test_transfer_allpassing(self):
+        pass
+
+    def test_group_allpassing(self):
+        pass
+
+    def test_instruction_allpassing(self):
+        pass
+
+    def test_instructions_allpassing(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()
