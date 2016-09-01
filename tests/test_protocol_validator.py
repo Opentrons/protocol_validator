@@ -50,14 +50,15 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
             'blowout': False
         }
 
-        self.dummy_transfer = {
+        self.dummy_transfer_move = {
             'from': copy.deepcopy(self.dummy_direction),
-            'to': copy.deepcopy(self.dummy_direction)
+            'to': copy.deepcopy(self.dummy_direction),
+            'volume': 10
         }
 
-        self.dummy_transfers = [
-            copy.deepcopy(self.dummy_transfer),
-            copy.deepcopy(self.dummy_transfer)
+        self.dummy_transfer = [
+            copy.deepcopy(self.dummy_transfer_move),
+            copy.deepcopy(self.dummy_transfer_move)
         ]
         # GROUPS
         self.dummy_group_transfer = {
@@ -113,16 +114,20 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
     def test_validate_deck(self):
         dummy_protocol = {
             "deck": {
+                # ERROR 1: FAKE-LABWARE not in containers data
                 "p10-rack": {
                     "labware": "FAKE-LABWARE",
                     "slot": "A1"
                 },
+                # ERROR 2: must define a "labware" attribute
                 "foo-bar": {
                     "slot": "A1"
                 },
+                # WARNING 1: "slot" recommended
                 "bar-foo": {
                     "labware": "unc_rack"
                 },
+                # ERROR 3: If you have a slot, make sure it's on the deck
                 "trash": {
                     "labware": "point",
                     "slot": "FAKE-SLOT"
@@ -132,7 +137,7 @@ class ProtocolvalidatorTestCase(unittest.TestCase):
         deck_data = dummy_protocol.get('deck')
         deck_errors = self.validator.validate_deck(deck_data).get('errors')
         print(json.dumps(deck_errors, sort_keys=True, indent=4))
-        self.assertEqual(len(deck_errors), 4)
+        self.assertEqual(len(deck_errors), 3)
 
 
     def test_validate_ingredients_allpassing(self):

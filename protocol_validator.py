@@ -576,12 +576,12 @@ class JSONProtocolValidator(object):
 
                 if command_from is None or command_to is None or volume is None:
                     errors.append(
-                        'Instructions Transfer MUST define "from" list, "to" list, and "volume", at instruction number {}, group number {}, command "{}", command number {}'
-                        .format(instruction_number, group_number, command_name, command_number)
+                        'Instructions Transfer MUST define "from" and "to" JSON objects, and "volume", at instruction number {}, group number {}, command number {}'
+                        .format(instruction_number, group_number, command_number)
                     )
                 else:
-                    from_messages = self.validate_direction('from', command_from, instruction_number, group_number, command_name, command_number)
-                    to_messages = self.validate_direction('to', command_from, instruction_number, group_number, command_name, command_number)
+                    from_messages = self.validate_direction('from', command_from, instruction_number, group_number, 'Transfer', command_number)
+                    to_messages = self.validate_direction('to', command_from, instruction_number, group_number, 'Transfer', command_number)
 
                     errors.extend(sum([
                         from_messages.get('errors'),
@@ -618,6 +618,7 @@ class JSONProtocolValidator(object):
             dist_cons = 'Consolidate'
             single_label = 'to'
             list_label = 'from'
+
         if not isinstance(command_value, dict):
             errors.append(
                 'Instructions {} MUST specify a JSON object (hint: {{}} ), at instruction number {}, group number {}'
@@ -625,11 +626,11 @@ class JSONProtocolValidator(object):
             )
         else:
             if dist_or_cons:
-                direction_list = command_value.get('from')
-                single_direction = command_value.get('to')
-            else:
                 direction_list = command_value.get('to')
                 single_direction = command_value.get('from')
+            else:
+                direction_list = command_value.get('from')
+                single_direction = command_value.get('to')
             blowout = command_value.get('blowout')
 
             if direction_list is None or single_direction is None:
@@ -641,11 +642,11 @@ class JSONProtocolValidator(object):
                 # Single Direction
                 if not isinstance(single_direction, dict):
                     errors.append(
-                        'Instructions {} "{}" must be a JSON object (hint: {{}} ), at instruction number {}, group_number{}'
+                        'Instructions {} "{}" must be a JSON object (hint: {{ }} ), at instruction number {}, group_number{}'
                         .format(dist_cons, single_label, instruction_number, group_number)
                     )
                 else:
-                    direction_message = self.validate_direction(single_label, distribute_from, instruction_number, group_number, dist_cons, 'n/a')
+                    direction_message = self.validate_direction(single_label, single_direction, instruction_number, group_number, dist_cons, 'n/a')
                     errors.extend(direction_message.get('errors'))
                     warnings.extend(direction_message.get('warnings'))
                 # Direction List
